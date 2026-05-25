@@ -164,6 +164,16 @@ ACTIVE_HOURS_START: int = 8
 ACTIVE_HOURS_END: int = 23
 
 
+# ── Login behavior ──────────────────────────────────────────────────────────
+
+# When True, ALL platforms wait for manual login before automated browsing.
+# When False, only platforms with detected login walls pause for login.
+FORCE_LOGIN: bool = True
+
+# Maximum seconds to wait for manual login (per platform).
+LOGIN_TIMEOUT_SECONDS: int = 300  # 5 minutes
+
+
 # ── Proxy support (optional) ────────────────────────────────────────────────
 
 PROXY_SERVER: str | None = None   # e.g. "http://user:pass@host:port"

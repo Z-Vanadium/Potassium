@@ -159,27 +159,36 @@ class PlatformHandler(ABC):
         """
         Detect login wall, wait for manual login, then continue.
 
-        Flow:
-            1. Check if login wall is visible
-            2. If yes: print instructions, open login page, wait for user
-            3. Poll for logged-in indicator every 3 seconds
-            4. Return True when logged in, False if timeout (5 min)
+        When config.FORCE_LOGIN is True, ALL platforms pause for manual login.
+        When False, only platforms with detected login walls pause.
+
+        Detection strategies (tried in order):
+            1. Specific selectors (_get_login_detectors): login_wall / logged_in
+            2. URL change: navigate to login page, wait for URL to change away
+            3. Any sign-in element disappearance
 
         Returns:
-            True if logged in successfully or no login needed; False if timeout.
+            True if logged in or skipped; False if timeout.
         """
         import asyncio
-        import sys
+
+        from config.settings import FORCE_LOGIN, LOGIN_TIMEOUT_SECONDS, PLATFORMS
 
         detectors = self._get_login_detectors()
-        if not detectors:
-            return True  # No login needed
-
         login_wall = detectors.get("login_wall", "")
         logged_in_sel = detectors.get("logged_in", "")
         login_url = detectors.get("login_url", "")
 
-        # Check if already logged in
+        # Fallback: use the login URL from platform config
+        if not login_url:
+            # Try to infer platform key from handler class name
+            for key, plat in PLATFORMS.items():
+                handler_cls_name = self.__class__.__name__.lower()
+                if key in handler_cls_name:
+                    login_url = plat.login_url
+                    break
+
+        # ── Already logged in? ──
         if logged_in_sel:
             try:
                 loc = page.locator(logged_in_sel).first
@@ -189,9 +198,15 @@ class PlatformHandler(ABC):
             except Exception:
                 pass
 
-        # Check if login wall is visible
-        needs_login = False
-        if login_wall:
+        # ── No detectors → check FORCE_LOGIN ──
+        if not detectors or not login_wall:
+            if not FORCE_LOGIN:
+                return True  # No detectors + not forced → skip
+            # FORCE_LOGIN: treat as login-required even without detectors
+            needs_login = True
+        else:
+            # Check if login wall is actually visible
+            needs_login = False
             try:
                 loc = page.locator(login_wall).first
                 if await loc.count() > 0:
@@ -199,35 +214,39 @@ class PlatformHandler(ABC):
             except Exception:
                 pass
 
+            if not needs_login and FORCE_LOGIN:
+                # Login wall not visible but force mode on — ask anyway
+                needs_login = True
+
         if not needs_login:
-            return True  # No login wall detected
+            return True
 
         # ── Wait for manual login ──
         logger.warning("=" * 60)
-        logger.warning(f"[{self.__class__.__name__}] Login required!")
-        logger.warning(f"  Platform: {page.url}")
+        logger.warning(f"[{self.__class__.__name__}] Login required!"
+                       f"{' (FORCE_LOGIN mode)' if FORCE_LOGIN and not detectors else ''}")
         logger.warning(f"  Profile:  {profile.display_name}")
-        logger.warning("")
+        logger.warning(f"  URL:      {login_url or page.url}")
         logger.warning("  >>> Please log in manually in the browser window. <<<")
-        logger.warning("  >>> The script will auto-detect login and continue. <<<")
         logger.warning("=" * 60)
 
         # Navigate to login page
+        pre_login_url = page.url
         if login_url:
             try:
                 await page.goto(login_url, wait_until="domcontentloaded", timeout=20000)
+                pre_login_url = login_url
             except Exception:
                 pass
 
-        # Print to stdout so user sees it clearly
         print(f"\n{'='*60}")
         print(f"  MANUAL LOGIN REQUIRED — {self.__class__.__name__}")
         print(f"  Profile: {profile.display_name}")
         print(f"  Please log in using the opened browser window...")
         print(f"{'='*60}\n", flush=True)
 
-        # Poll for login
-        timeout_seconds = 300  # 5 minutes
+        # ── Poll for login completion ──
+        timeout_seconds = LOGIN_TIMEOUT_SECONDS
         poll_interval = 3
         elapsed = 0
 
@@ -235,18 +254,19 @@ class PlatformHandler(ABC):
             await asyncio.sleep(poll_interval)
             elapsed += poll_interval
 
+            # Strategy 1: specific logged_in selector
             if logged_in_sel:
                 try:
                     loc = page.locator(logged_in_sel).first
-                    if await loc.count() > 0:
+                    if await loc.count() > 0 and await loc.is_visible(timeout=1000):
                         logger.success(f"[{self.__class__.__name__}] Login detected! Continuing...")
-                        print(f"  ✓ Login detected! Resuming automation...\n", flush=True)
-                        await asyncio.sleep(2.0)  # Let page settle
+                        print(f"  ✓ Login detected! Resuming...\n", flush=True)
+                        await asyncio.sleep(2.0)
                         return True
                 except Exception:
                     pass
 
-            # Also check if login wall disappeared (alternative indicator)
+            # Strategy 2: login wall disappeared
             if login_wall:
                 try:
                     loc = page.locator(login_wall).first
@@ -257,10 +277,39 @@ class PlatformHandler(ABC):
                 except Exception:
                     pass
 
-            if elapsed % 15 == 0:
-                logger.info(f"[{self.__class__.__name__}] Waiting for login... ({elapsed}s)")
+            # Strategy 3: URL changed away from login page (generic fallback)
+            if login_url and login_url != page.url:
+                current = page.url
+                login_keywords = ("login", "signin", "sign_in", "sign-in", "auth")
+                if not any(kw in current.lower() for kw in login_keywords):
+                    logger.success(f"[{self.__class__.__name__}] Navigated away from login — continuing...")
+                    print(f"  ✓ Login detected! Resuming...\n", flush=True)
+                    await asyncio.sleep(2.0)
+                    return True
 
-        logger.warning(f"[{self.__class__.__name__}] Login timeout — continuing anyway")
+            # Strategy 4: page content changed significantly (DOM growth)
+            if not detectors and elapsed > 15:
+                try:
+                    body = page.locator("body")
+                    text = await body.text_content() or ""
+                    if len(text) > 500 and not any(
+                        kw in text.lower()[:200]
+                        for kw in ("sign in", "log in", "username", "password")
+                    ):
+                        logger.success(f"[{self.__class__.__name__}] Page content looks logged-in — continuing...")
+                        print(f"  ✓ Login detected! Resuming...\n", flush=True)
+                        await asyncio.sleep(2.0)
+                        return True
+                except Exception:
+                    pass
+
+            if elapsed % 30 == 0 and elapsed > 0:
+                remaining = timeout_seconds - elapsed
+                logger.info(f"[{self.__class__.__name__}] Waiting for login... "
+                            f"({elapsed}s elapsed, {remaining}s remaining)")
+
+        logger.warning(f"[{self.__class__.__name__}] Login timeout ({timeout_seconds}s) — continuing anyway")
+        print(f"  ⚠ Login timeout — continuing anyway\n", flush=True)
         return False
 
     # ── Optional hooks (override to customize) ─────────────────────────────
