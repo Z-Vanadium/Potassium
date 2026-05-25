@@ -232,6 +232,34 @@ async with ContextManager() as manager:
 
 每个 `AccountContext` 自动跟踪：操作计数、频控状态、会话时长。
 
+### 登录等待机制 (`wait_for_login`)
+
+需要登录才能展示内容的平台（Twitter、LinkedIn、Amazon、eBay、Spotify 等），处理器内置自动登录检测：
+
+```
+handler.before_browse()
+    │
+    ├── 检查 "logged_in" 选择器 → 已登录？直接继续
+    ├── 检查 "login_wall" 选择器 → 未检测到？无需登录，继续
+    │
+    └── 检测到登录墙 →
+            ├── 终端打印醒目提示："请在浏览器窗口中手动登录"
+            ├── 自动跳转到平台登录页
+            ├── 每 3 秒轮询一次，检测登录完成
+            ├── 用户登录后自动恢复自动化浏览
+            └── 5 分钟超时 → 跳过，继续下一个平台
+```
+
+**已集成登录检测的平台（9/17）**：
+
+| 平台 | 检测方式 |
+|------|---------|
+| Twitter, LinkedIn, Amazon, eBay | 导航栏用户菜单 / 个人头像 |
+| AliExpress, Shopee, Expedia, Agoda | 账号入口按钮 / 用户区域 |
+| Spotify | 用户 widget 组件 |
+
+无需登录的平台（Pinterest, Tumblr, Reddit, Quora, Twitch, Walmart, Booking, YouTube）— `wait_for_login()` 直接返回，无额外等待。
+
 ---
 
 ## 配置说明

@@ -140,6 +140,129 @@ class PlatformHandler(ABC):
         """
         ...
 
+    # ── Login detection (override for platforms that require login) ────────
+
+    def _get_login_detectors(self) -> dict[str, str]:
+        """
+        Return selectors for login detection.
+
+        Keys:
+            "login_wall":  selector that appears when NOT logged in (e.g. login form, "Sign in" button)
+            "logged_in":   selector that appears when logged in (e.g. avatar, user menu, feed)
+            "login_url":   URL of the login page
+
+        Return empty dict if platform works anonymously (default).
+        """
+        return {}
+
+    async def wait_for_login(self, page: Page, profile: UserProfile) -> bool:
+        """
+        Detect login wall, wait for manual login, then continue.
+
+        Flow:
+            1. Check if login wall is visible
+            2. If yes: print instructions, open login page, wait for user
+            3. Poll for logged-in indicator every 3 seconds
+            4. Return True when logged in, False if timeout (5 min)
+
+        Returns:
+            True if logged in successfully or no login needed; False if timeout.
+        """
+        import asyncio
+        import sys
+
+        detectors = self._get_login_detectors()
+        if not detectors:
+            return True  # No login needed
+
+        login_wall = detectors.get("login_wall", "")
+        logged_in_sel = detectors.get("logged_in", "")
+        login_url = detectors.get("login_url", "")
+
+        # Check if already logged in
+        if logged_in_sel:
+            try:
+                loc = page.locator(logged_in_sel).first
+                if await loc.count() > 0 and await loc.is_visible(timeout=2000):
+                    logger.info(f"[{self.__class__.__name__}] Already logged in")
+                    return True
+            except Exception:
+                pass
+
+        # Check if login wall is visible
+        needs_login = False
+        if login_wall:
+            try:
+                loc = page.locator(login_wall).first
+                if await loc.count() > 0:
+                    needs_login = True
+            except Exception:
+                pass
+
+        if not needs_login:
+            return True  # No login wall detected
+
+        # ── Wait for manual login ──
+        logger.warning("=" * 60)
+        logger.warning(f"[{self.__class__.__name__}] Login required!")
+        logger.warning(f"  Platform: {page.url}")
+        logger.warning(f"  Profile:  {profile.display_name}")
+        logger.warning("")
+        logger.warning("  >>> Please log in manually in the browser window. <<<")
+        logger.warning("  >>> The script will auto-detect login and continue. <<<")
+        logger.warning("=" * 60)
+
+        # Navigate to login page
+        if login_url:
+            try:
+                await page.goto(login_url, wait_until="domcontentloaded", timeout=20000)
+            except Exception:
+                pass
+
+        # Print to stdout so user sees it clearly
+        print(f"\n{'='*60}")
+        print(f"  MANUAL LOGIN REQUIRED — {self.__class__.__name__}")
+        print(f"  Profile: {profile.display_name}")
+        print(f"  Please log in using the opened browser window...")
+        print(f"{'='*60}\n", flush=True)
+
+        # Poll for login
+        timeout_seconds = 300  # 5 minutes
+        poll_interval = 3
+        elapsed = 0
+
+        while elapsed < timeout_seconds:
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+
+            if logged_in_sel:
+                try:
+                    loc = page.locator(logged_in_sel).first
+                    if await loc.count() > 0:
+                        logger.success(f"[{self.__class__.__name__}] Login detected! Continuing...")
+                        print(f"  ✓ Login detected! Resuming automation...\n", flush=True)
+                        await asyncio.sleep(2.0)  # Let page settle
+                        return True
+                except Exception:
+                    pass
+
+            # Also check if login wall disappeared (alternative indicator)
+            if login_wall:
+                try:
+                    loc = page.locator(login_wall).first
+                    if await loc.count() == 0:
+                        logger.success(f"[{self.__class__.__name__}] Login wall disappeared! Continuing...")
+                        await asyncio.sleep(2.0)
+                        return True
+                except Exception:
+                    pass
+
+            if elapsed % 15 == 0:
+                logger.info(f"[{self.__class__.__name__}] Waiting for login... ({elapsed}s)")
+
+        logger.warning(f"[{self.__class__.__name__}] Login timeout — continuing anyway")
+        return False
+
     # ── Optional hooks (override to customize) ─────────────────────────────
 
     async def before_browse(self, page: Page, profile: UserProfile) -> None:
