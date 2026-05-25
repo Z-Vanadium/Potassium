@@ -250,33 +250,60 @@ async with ContextManager() as manager:
 
 每个 `AccountContext` 自动跟踪：操作计数、频控状态、会话时长。
 
-### 登录等待机制 (`wait_for_login`)
+### 强制登录机制 (`FORCE_LOGIN`)
 
-需要登录才能展示内容的平台（Twitter、LinkedIn、Amazon、eBay、Spotify 等），处理器内置自动登录检测：
+**默认开启**：所有 17 个平台在自动浏览前都会等待手动登录。配置项在 `config/settings.py`：
+
+```python
+FORCE_LOGIN = True             # 默认 True：所有平台强制等待手动登录
+LOGIN_TIMEOUT_SECONDS = 300    # 每平台最多等 5 分钟
+```
+
+关闭后仅对检测到登录墙的平台暂停：
+
+```python
+FORCE_LOGIN = False            # 仅检测到登录墙的平台才等待
+```
+
+### 登录检测流程（4 层级联）
 
 ```
 handler.before_browse()
-    │
-    ├── 检查 "logged_in" 选择器 → 已登录？直接继续
-    ├── 检查 "login_wall" 选择器 → 未检测到？无需登录，继续
-    │
-    └── 检测到登录墙 →
-            ├── 终端打印醒目提示："请在浏览器窗口中手动登录"
-            ├── 自动跳转到平台登录页
-            ├── 每 3 秒轮询一次，检测登录完成
-            ├── 用户登录后自动恢复自动化浏览
-            └── 5 分钟超时 → 跳过，继续下一个平台
+    └── wait_for_login()
+            │
+            ├── 1. 特定选择器检测（9 个平台有专用检测器）
+            │      logged_in 选择器可见 → 已登录，继续
+            │      login_wall 选择器可见 → 需要登录
+            │
+            ├── 2. FORCE_LOGIN=True？→ 无论有无检测器，都要求登录
+            │
+            ├── 3. 跳转到登录页 → 终端打印提示
+            │      "MANUAL LOGIN REQUIRED — 请在浏览器窗口中手动登录"
+            │
+            └── 4. 每 3 秒轮询，4 种策略检测完成：
+                   ├── logged_in 选择器出现
+                   ├── login_wall 消失
+                   ├── URL 不再含 "login"/"signin"（通用兜底）
+                   └── 页面内容分析（无登录关键词 + 内容丰富）
+                   
+                   完成后自动恢复自动化浏览
 ```
 
-**已集成登录检测的平台（9/17）**：
+**已配置专用检测器的平台（9/17）**：
 
-| 平台 | 检测方式 |
-|------|---------|
-| Twitter, LinkedIn, Amazon, eBay | 导航栏用户菜单 / 个人头像 |
-| AliExpress, Shopee, Expedia, Agoda | 账号入口按钮 / 用户区域 |
-| Spotify | 用户 widget 组件 |
+| 平台 | 登录墙检测 | 已登录检测 |
+|------|-----------|-----------|
+| Twitter | login button | `article[data-testid="tweet"]` |
+| LinkedIn | login form | `div.global-nav__me` |
+| Amazon | signin tooltip | account list span |
+| eBay | signin link | user menu |
+| AliExpress | login modal | user-account div |
+| Spotify | login button | user widget |
+| Shopee | login popup | navbar username |
+| Expedia | signin button | account menu |
+| Agoda | signin link | user avatar |
 
-无需登录的平台（Pinterest, Tumblr, Reddit, Quora, Twitch, Walmart, Booking, YouTube）— `wait_for_login()` 直接返回，无额外等待。
+其余 8 个平台（Pinterest, Tumblr, Reddit, Quora, Twitch, Walmart, Booking, YouTube）在 `FORCE_LOGIN=True` 时使用 URL 跳转 + 页面内容策略通用检测。
 
 ---
 
@@ -285,9 +312,12 @@ handler.before_browse()
 ### 频控参数 (`config/settings.py`)
 
 ```python
-GLOBAL_DAILY_ACTION_CAP = 500   # 所有账号合计每天最多 500 次操作
-ACTIVE_HOURS_START = 8          # 早上 8 点开始
-ACTIVE_HOURS_END = 23           # 晚上 11 点结束
+GLOBAL_DAILY_ACTION_CAP = 500       # 所有账号合计每天最多 500 次操作
+ACTIVE_HOURS_START = 8              # 早上 8 点开始
+ACTIVE_HOURS_END = 23               # 晚上 11 点结束
+
+FORCE_LOGIN = True                  # 所有平台强制等待手动登录
+LOGIN_TIMEOUT_SECONDS = 300         # 登录等待超时（秒）
 
 # 每个平台可独立设置（示例）：
 PlatformConfig(daily_like_limit=30, daily_comment_limit=8, ...)
