@@ -111,7 +111,10 @@ class AccountContext:
         try:
             state = await self.context.storage_state()
             self.storage_path.parent.mkdir(parents=True, exist_ok=True)
-            self.storage_path.write_text(json.dumps(state, ensure_ascii=False, indent=2))
+            self.storage_path.write_text(
+                json.dumps(state, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
             logger.info(f"Saved storage state → {self.storage_path}")
         except Exception as e:
             logger.warning(f"Could not save storage state: {e}")
