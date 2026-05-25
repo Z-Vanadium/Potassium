@@ -289,21 +289,27 @@ handler.before_browse()
                    完成后自动恢复自动化浏览
 ```
 
-**已配置专用检测器的平台（9/17）**：
+**全部 17 个平台均已配置专用登录检测器**：
 
-| 平台 | 登录墙检测 | 已登录检测 |
-|------|-----------|-----------|
-| Twitter | login button | `article[data-testid="tweet"]` |
-| LinkedIn | login form | `div.global-nav__me` |
-| Amazon | signin tooltip | account list span |
-| eBay | signin link | user menu |
-| AliExpress | login modal | user-account div |
-| Spotify | login button | user widget |
-| Shopee | login popup | navbar username |
-| Expedia | signin button | account menu |
-| Agoda | signin link | user avatar |
-
-其余 8 个平台（Pinterest, Tumblr, Reddit, Quora, Twitch, Walmart, Booking, YouTube）在 `FORCE_LOGIN=True` 时使用 URL 跳转 + 页面内容策略通用检测。
+| 平台 | 登录墙选择器 | 已登录选择器 |
+|------|-------------|-------------|
+| Pinterest | `button[data-test-id="login-button"]` | `button[data-test-id="user-menu-button"]` |
+| Tumblr | `a[href*="/login"]` | `a[aria-label="Account"]` |
+| Twitch | `button[data-test-selector="login-button"]` | `button[data-test-selector="user-menu-toggle"]` |
+| Reddit | `a[href*="/login/"]` | `button#USER_DROPDOWN_ID` |
+| Quora | `div.modal_signup_dialog` | `div.UserAvatar` |
+| Twitter | `a[href*="/login"]` | `article[data-testid="tweet"]` |
+| LinkedIn | `div.authentication-outlet` | `div.global-nav__me` |
+| Amazon | `a#nav-link-accountList[href*="signin"]` | `span#nav-link-accountList-nav-line-1` |
+| eBay | `a[href*="signin.ebay"]` | `button#gh-ug` |
+| AliExpress | `a[href*="/login"]` | `div[class*="user-account"]` |
+| Walmart | `a[href*="/account/login"]` | `span[data-testid="header-greeting"]` |
+| Shopee | `a[href*="/buyer/login"]` | `div[class*="navbar__username"]` |
+| Booking.com | `a[data-testid="header-sign-in"]` | `div[data-testid="header-profile"]` |
+| Expedia | `button[data-stid="header-menu-signin"]` | `div[data-stid="header-menu-account"]` |
+| Agoda | `a[href*="/account/signin"]` | `div[class*="user-menu"]` |
+| Spotify | `button[data-testid="login-button"]` | `button[data-testid="user-widget-link"]` |
+| YouTube | `a[href*="ServiceLogin"]` | `button#avatar-btn img` |
 
 ---
 

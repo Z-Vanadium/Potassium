@@ -46,6 +46,12 @@ class BookingHandler(PlatformHandler):
             "search_box":     'input[name="ss"], input[data-testid="destination-container"] input',
         }
 
+    def _get_login_detectors(self) -> dict[str, str]:
+        return {
+            "login_wall": 'a[data-testid="header-sign-in"], a[href*="/sign-in"]',
+            "logged_in":  'div[data-testid="header-profile"], button[data-testid="header-account-menu"]',
+        }
+
     async def find_content(self, page: Page, profile: UserProfile) -> list[ContentItem]:
         sel = self._get_selectors()
         items: list[ContentItem] = []
@@ -121,6 +127,7 @@ class BookingHandler(PlatformHandler):
         return result
 
     async def before_browse(self, page: Page, profile: UserProfile) -> None:
+        await self.wait_for_login(page, profile)
         kw = random.choice(profile.interests)
         url = f"https://www.booking.com/searchresults.html?ss={kw.replace(' ', '+')}"
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)

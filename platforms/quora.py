@@ -43,6 +43,12 @@ class QuoraHandler(PlatformHandler):
             "search_box":     'input[name="q"], input[placeholder*="search" i]',
         }
 
+    def _get_login_detectors(self) -> dict[str, str]:
+        return {
+            "login_wall": 'div.modal_signup_dialog, div.q-inlineSignupForm, div[class*="SignupModal"]',
+            "logged_in":  'div.UserAvatar, img[alt*="profile" i], a[href*="/profile/"]',
+        }
+
     async def find_content(self, page: Page, profile: UserProfile) -> list[ContentItem]:
         sel = self._get_selectors()
         items: list[ContentItem] = []
@@ -120,6 +126,7 @@ class QuoraHandler(PlatformHandler):
         return result
 
     async def before_browse(self, page: Page, profile: UserProfile) -> None:
+        await self.wait_for_login(page, profile)
         kw = random.choice(profile.interests)
         url = f"https://www.quora.com/search?q={kw.replace(' ', '%20')}"
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)

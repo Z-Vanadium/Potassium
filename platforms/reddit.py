@@ -87,6 +87,12 @@ class RedditHandler(PlatformHandler):
             "old_upvote":      "div.arrow.up",
         }
 
+    def _get_login_detectors(self) -> dict[str, str]:
+        return {
+            "login_wall": 'a[href*="/login/"], faceplate-tracker[source="logged_out"]',
+            "logged_in":  'button#USER_DROPDOWN_ID, faceplate-tracker[source="user"]',
+        }
+
     # ── Find content matching profile interests ────────────────────────────
 
     async def find_content(self, page: Page, profile: UserProfile) -> list[ContentItem]:
@@ -253,6 +259,7 @@ class RedditHandler(PlatformHandler):
 
     async def before_browse(self, page: Page, profile: UserProfile) -> None:
         """Navigate to Reddit front page or a relevant subreddit."""
+        await self.wait_for_login(page, profile)
         subreddit = _pick_subreddit(profile)
         url = f"https://www.reddit.com/{subreddit}"
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)

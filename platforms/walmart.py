@@ -42,6 +42,12 @@ class WalmartHandler(PlatformHandler):
             "search_box":    'input[data-testid="search-input"], input[type="search"]',
         }
 
+    def _get_login_detectors(self) -> dict[str, str]:
+        return {
+            "login_wall": 'a[href*="/account/login"], button[data-testid="header-sign-in"]',
+            "logged_in":  'span[data-testid="header-greeting"], a[data-testid="header-account-link"]',
+        }
+
     async def find_content(self, page: Page, profile: UserProfile) -> list[ContentItem]:
         sel = self._get_selectors()
         items: list[ContentItem] = []
@@ -110,6 +116,7 @@ class WalmartHandler(PlatformHandler):
         return result
 
     async def before_browse(self, page: Page, profile: UserProfile) -> None:
+        await self.wait_for_login(page, profile)
         kw = random.choice(profile.interests)
         url = f"https://www.walmart.com/search?q={kw.replace(' ', '+')}"
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)

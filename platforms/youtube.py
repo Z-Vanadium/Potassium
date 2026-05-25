@@ -55,6 +55,12 @@ class YouTubeHandler(PlatformHandler):
             "search_box":    'input#search, input[name="search_query"]',
         }
 
+    def _get_login_detectors(self) -> dict[str, str]:
+        return {
+            "login_wall": 'a[href*="ServiceLogin"], paper-button[aria-label*="Sign in" i]',
+            "logged_in":  'button#avatar-btn img, yt-img-shadow#avatar img',
+        }
+
     async def find_content(self, page: Page, profile: UserProfile) -> list[ContentItem]:
         sel = self._get_selectors()
         items: list[ContentItem] = []
@@ -146,6 +152,7 @@ class YouTubeHandler(PlatformHandler):
         return result
 
     async def before_browse(self, page: Page, profile: UserProfile) -> None:
+        await self.wait_for_login(page, profile)
         kw = random.choice(profile.interests)
         url = f"https://www.youtube.com/results?search_query={kw.replace(' ', '+')}"
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)

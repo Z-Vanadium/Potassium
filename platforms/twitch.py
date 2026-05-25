@@ -45,6 +45,12 @@ class TwitchHandler(PlatformHandler):
             "search_box":    'input[type="search"], input[placeholder*="Search" i]',
         }
 
+    def _get_login_detectors(self) -> dict[str, str]:
+        return {
+            "login_wall": 'button[data-test-selector="login-button"], a[href="/login"]',
+            "logged_in":  'button[data-test-selector="user-menu-toggle"], figure[data-test-selector="user-avatar"]',
+        }
+
     async def find_content(self, page: Page, profile: UserProfile) -> list[ContentItem]:
         sel = self._get_selectors()
         items: list[ContentItem] = []
@@ -132,6 +138,7 @@ class TwitchHandler(PlatformHandler):
         return result
 
     async def before_browse(self, page: Page, profile: UserProfile) -> None:
+        await self.wait_for_login(page, profile)
         kw = random.choice(profile.interests)
         url = f"https://www.twitch.tv/search?term={kw.replace(' ', '%20')}"
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)

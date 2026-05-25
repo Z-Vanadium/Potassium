@@ -45,6 +45,12 @@ class TumblrHandler(PlatformHandler):
             "search_box":    'input[name="q"], input[placeholder*="search" i]',
         }
 
+    def _get_login_detectors(self) -> dict[str, str]:
+        return {
+            "login_wall": 'a[href*="/login"], div[class*="logged_out"], button[class*="signup"]',
+            "logged_in":  'a[aria-label="Account" i], button[aria-label*="Account" i], div[class*="avatar"]',
+        }
+
     async def find_content(self, page: Page, profile: UserProfile) -> list[ContentItem]:
         sel = self._get_selectors()
         items: list[ContentItem] = []
@@ -140,6 +146,7 @@ class TumblrHandler(PlatformHandler):
         return result
 
     async def before_browse(self, page: Page, profile: UserProfile) -> None:
+        await self.wait_for_login(page, profile)
         kw = random.choice(profile.interests)
         url = f"https://www.tumblr.com/search/{kw.replace(' ', '%20')}"
         await page.goto(url, wait_until="domcontentloaded", timeout=20000)

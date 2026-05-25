@@ -50,6 +50,12 @@ class PinterestHandler(PlatformHandler):
             "search_box":     'input[name="search"], input[data-test-id="search-input"]',
         }
 
+    def _get_login_detectors(self) -> dict[str, str]:
+        return {
+            "login_wall": 'button[data-test-id="login-button"], div[data-test-id="unauth-header"] a[href*="login"]',
+            "logged_in":  'button[data-test-id="user-menu-button"], div[data-test-id="header-user-menu"]',
+        }
+
     async def find_content(self, page: Page, profile: UserProfile) -> list[ContentItem]:
         sel = self._get_selectors()
         items: list[ContentItem] = []
@@ -129,6 +135,7 @@ class PinterestHandler(PlatformHandler):
         return result
 
     async def before_browse(self, page: Page, profile: UserProfile) -> None:
+        await self.wait_for_login(page, profile)
         # Search for a profile interest
         import random as _random
         kw = _random.choice(profile.interests)
