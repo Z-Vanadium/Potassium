@@ -1,0 +1,24 @@
+[project]
+name = "final"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "loguru>=0.7.3",
+    "playwright>=1.60.0",
+]
+
+[dependency-groups]
+dev = [
+    "basedpyright>=1.39.6",
+]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportAny = false
+reportUnusedCallResult = false
+reportImplicitStringConcatenation = false
