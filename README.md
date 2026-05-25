@@ -1,146 +1,146 @@
-# Potassium — Multi-Platform Social Account Farming Framework
+# Potassium — 多平台社交账号养号自动化框架
 
-Browser automation framework for building differentiated user profiles across **17 international platforms**. Each account gets an isolated browser context with unique fingerprint, stealth patches, and human-like behavior. Supports a pluggable per-platform handler architecture for DOM-specific content interaction.
+基于 **Playwright** 的浏览器自动化框架，在 **17 个国际平台** 上构建差异化的用户画像。每个账号拥有独立的浏览器上下文、唯一设备指纹、反检测补丁和拟人化行为。支持可插拔的按平台回调处理器架构，实现针对各网站 DOM 结构的精准内容交互。
 
 ---
 
-## Quick Start
+## 快速开始
 
 ```bash
-# Prerequisites: Python 3.12+
+# 环境要求：Python 3.12+
 pip install uv
 
-# Clone & install
+# 克隆并安装
 git clone git@github.com:Z-Vanadium/Potassium.git
 cd Potassium
 uv sync
 uv run playwright install chromium
 
-# Run the daily farming script (quick mode: 17 combos)
+# 快速模式：17 个组合（每平台一个画像）
 uv run python daily_farming.py --quick
 
-# Full mode: 6 profiles × 17 platforms = 102 combinations
+# 全量模式：6 个画像 × 17 个平台 = 102 个组合
 uv run python daily_farming.py
 ```
 
 ---
 
-## Concepts
+## 核心概念
 
-| Concept | What it is | In this project |
-|---------|-----------|----------------|
-| **Browser** | One Chromium process | Shared across all accounts |
-| **Context** | Isolated browser session | **One per account** — independent cookies, fingerprint, storage |
-| **Page** | A browser tab | Each Context opens its own Pages |
-| **Fingerprint** | Device signals sent to websites | Per-account: UA, viewport, WebGL, CPU cores, timezone, locale |
-| **Profile** | Complete persona definition | Interests, device, behavior params, activity patterns |
-| **Handler** | Per-platform DOM interaction logic | Knows each site's specific HTML structure |
+| 概念 | 通俗解释 | 在本项目中的作用 |
+|------|---------|-----------------|
+| **Browser（浏览器）** | 一个 Chromium 进程 | 所有账号共享，只启动一次 |
+| **Context（上下文）** | 浏览器中的独立隔间 | **每账号一个** — cookie、指纹、存储完全隔离 |
+| **Page（页面）** | 一个标签页 | 每个 Context 可打开多个 Page |
+| **指纹 (Fingerprint)** | 网站识别你设备的信号 | 每账号不同：UA、分辨率、WebGL、CPU 核数、时区 |
+| **画像 (Profile)** | 一个完整的人设 | 兴趣、设备、行为参数、活跃模式 |
+| **处理器 (Handler)** | 针对特定网站 DOM 的交互逻辑 | 知道每个网站的 HTML 结构，精准点击匹配内容的回调函数 |
 
-Analogy: Each account = a different person using a different computer in a different city.
+**类比**：每个账号 = 不同的人,在不同的城市,用不同的电脑。
 
 ---
 
-## Project Structure
+## 项目结构
 
 ```
 ├── config/
-│   ├── settings.py          # 17 platforms, rate limits, browser defaults
-│   └── profiles.py          # 6 user profiles (persona definitions)
+│   ├── settings.py          # 17 个平台配置、频控参数、浏览器默认值
+│   └── profiles.py          # 6 个用户画像（人设定义）
 ├── core/
-│   ├── stealth.py           # Anti-detection patches (webdriver, plugins, CDP)
-│   ├── fingerprint.py       # Per-account device fingerprint
-│   ├── human_behavior.py    # Typing, mouse, scroll simulation
-│   └── context_manager.py   # BrowserContext factory + session isolation
-├── platforms/               # Per-platform DOM handlers (callback architecture)
-│   ├── base.py              # Abstract PlatformHandler + callback interface
-│   ├── reddit.py            # Reddit: shreddit-post → find → click → vote
-│   └── __init__.py          # Registry: get_handler("reddit")
-├── daily_farming.py         # Main automation: 6×17 daily farming script
-├── main.py                  # Demo: stealth verification + fingerprint check
-├── profiles/                # Persistent browser sessions (auto-saved)
-└── evidence/                # Screenshots + JSON summary (runtime output)
+│   ├── stealth.py           # 反检测引擎（webdriver、plugins、CDP 泄露修补）
+│   ├── fingerprint.py       # 每账号独立设备指纹
+│   ├── human_behavior.py    # 拟人操作：打字、鼠标轨迹、滚动模拟
+│   └── context_manager.py   # 浏览器上下文工厂 + 会话隔离
+├── platforms/               # 按平台的 DOM 处理器（回调架构）
+│   ├── base.py              # 抽象基类 PlatformHandler + 回调接口
+│   ├── reddit.py            # Reddit：扫描 shreddit-post → 匹配 → 点击 → 投票
+│   └── __init__.py          # 注册表：get_handler("reddit") 获取处理器
+├── daily_farming.py         # 主自动化脚本：6×17 每日养号
+├── main.py                  # 演示：反检测验证 + 指纹隔离检查
+├── profiles/                # 持久化浏览器会话状态（自动保存）
+└── evidence/                # 截图 + JSON 汇总报告（运行时输出）
 ```
 
 ---
 
-## 6 Built-in Profiles
+## 6 个预设用户画像
 
-| Profile | Persona | Device | Interests | Behavior |
-|---------|---------|--------|-----------|----------|
-| `tech_enthusiast` | Tech Enthusiast | Windows / NVIDIA RTX 3060 | AI, Rust, open source, startups | Fast reader, 25% like, weekly posts |
-| `food_blogger` | Food Blogger | iPhone | Recipes, baking, coffee, Italian food | Slow reader, 45% like, heavy emoji |
-| `traveler` | Travel Enthusiast | MacBook / M3 | Hiking, Japan, Patagonia, nomad life | Normal pace, 35% like |
-| `college_student` | College Student | Windows / AMD RX 6600 | GRE, internships, dorm hacks, playlists | Very fast, 40% like, 3-5 sessions/day |
-| `retiree` | Retiree | iPad / A12Z | Gardening, yoga, classical music, birding | Reader mode, 15% like, 25% share |
-| `teenager` | Teenager | Windows / AMD RX 6500XT | Fortnite, NBA, anime, Valorant, memes | Very fast, 55% like, heavy emoji, 2-4h sessions |
+| 画像 ID | 身份 | 设备 | 兴趣关键词 | 行为特征 |
+|---------|------|------|-----------|---------|
+| `tech_enthusiast` | 科技爱好者 | Windows / NVIDIA RTX 3060 | AI, Rust, 开源, 创业 | 快速浏览，点赞率 25%，每周发帖 |
+| `food_blogger` | 美食博主 | iPhone | 食谱、烘焙、咖啡、意大利菜 | 慢速细看，点赞率 45%，表情多 |
+| `traveler` | 旅行达人 | MacBook / M3 | 徒步、日本、巴塔哥尼亚、数字游民 | 正常速度，点赞率 35% |
+| `college_student` | 大学生 | Windows / AMD RX 6600 | GRE、实习、寝室好物、歌单 | 极快浏览，点赞率 40%，每天 3-5 次上线 |
+| `retiree` | 退休老人 | iPad / A12Z | 园艺、瑜伽、古典音乐、观鸟 | 逐字细读，点赞率 15%，转发率 25% |
+| `teenager` | 未成年人 | Windows / AMD RX 6500XT | Fortnite、NBA、动漫、Valorant、梗图 | 飞快刷，点赞率 55%，表情刷屏，每天 2-4 小时 |
 
-Usage: `from config.profiles import TECH_ENTHUSIAST, RETIREE`
-
----
-
-## 17 International Platforms
-
-| Category | Platform | Key | Base URL |
-|----------|----------|-----|----------|
-| Social | Pinterest | `pinterest` | pinterest.com |
-| Social | Tumblr | `tumblr` | tumblr.com |
-| Social | Reddit | `reddit` | reddit.com |
-| Social | Quora | `quora` | quora.com |
-| Social | X / Twitter | `twitter` | x.com |
-| Social | LinkedIn | `linkedin` | linkedin.com |
-| Streaming | Twitch | `twitch` | twitch.tv |
-| E-commerce | Amazon | `amazon` | amazon.com |
-| E-commerce | eBay | `ebay` | ebay.com |
-| E-commerce | AliExpress | `aliexpress` | aliexpress.com |
-| E-commerce | Walmart | `walmart` | walmart.com |
-| E-commerce | Shopee | `shopee` | shopee.sg |
-| Travel | Booking.com | `booking` | booking.com |
-| Travel | Expedia | `expedia` | expedia.com |
-| Travel | Agoda | `agoda` | agoda.com |
-| Streaming | Spotify | `spotify` | open.spotify.com |
-| Streaming | YouTube | `youtube` | youtube.com |
+使用：`from config.profiles import TECH_ENTHUSIAST, RETIREE`
 
 ---
 
-## Handler Architecture (Callback Pattern)
+## 17 个国际平台
 
-Each platform can have a dedicated handler that knows its specific DOM structure. The handler finds content matching the profile's interests and interacts with it — clicking, voting, commenting.
+| 分类 | 平台 | 键值 | 网址 |
+|------|------|------|------|
+| 社交 | Pinterest | `pinterest` | pinterest.com |
+| 社交 | Tumblr | `tumblr` | tumblr.com |
+| 社交 | Reddit | `reddit` | reddit.com |
+| 社交 | Quora | `quora` | quora.com |
+| 社交 | X / Twitter | `twitter` | x.com |
+| 社交 | LinkedIn | `linkedin` | linkedin.com |
+| 直播 | Twitch | `twitch` | twitch.tv |
+| 电商 | Amazon | `amazon` | amazon.com |
+| 电商 | eBay | `ebay` | ebay.com |
+| 电商 | AliExpress | `aliexpress` | aliexpress.com |
+| 电商 | Walmart | `walmart` | walmart.com |
+| 电商 | Shopee | `shopee` | shopee.sg |
+| 旅行 | Booking.com | `booking` | booking.com |
+| 旅行 | Expedia | `expedia` | expedia.com |
+| 旅行 | Agoda | `agoda` | agoda.com |
+| 流媒体 | Spotify | `spotify` | open.spotify.com |
+| 流媒体 | YouTube | `youtube` | youtube.com |
 
-### How it works
+---
+
+## 回调式处理器架构
+
+每个平台可以有专属的处理器（回调函数），它知道该网站的具体 DOM 结构。处理器根据画像兴趣找到匹配内容，然后点击、投票、评论。
+
+### 工作原理
 
 ```python
 from platforms import get_handler
 
-handler = get_handler("reddit")  # Returns RedditHandler or None
+handler = get_handler("reddit")  # 返回 RedditHandler 实例，无处理器时返回 None
 
 if handler:
-    # Optional: set callbacks
-    handler.on_content_found = lambda item: print(f"Found: {item.title}")
-    handler.on_interact = lambda item, action: print(f"Liked: {action.liked}")
+    # 可选：设置回调函数
+    handler.on_content_found = lambda item: print(f"发现: {item.title}")
+    handler.on_interact = lambda item, action: print(f"已点赞: {action.liked}")
 
-    # Browse + interact
+    # 浏览 + 互动
     result = await handler.browse(page, profile, account_ctx)
-    # → Finds posts matching interests, clicks them, upvotes, returns summary
+    # → 找到匹配画像兴趣的帖子 → 点击 → 点赞 → 返回汇总
 else:
-    # Fallback: generic search + scroll
+    # 没有处理器时回退到通用搜索+滚动
     ...
 ```
 
-### Built-in handler: Reddit
+### 已实现处理器：Reddit
 
 ```
 RedditHandler (platforms/reddit.py)
 │
-├── before_browse()     → Navigate to r/Python, r/Baking, etc. based on profile interests
-├── find_content()      → Scan <shreddit-post> elements, extract titles, score vs profile.interests
-├── should_engage()     → relevance ≥ 0.5 required; then probability = like_probability + score × 0.4
-└── interact()          → Click title → load post → scroll (profile.reading_multiplier)
-                           → dice-roll upvote (profile.like_probability)
-                           → dice-roll comment (profile.comment_probability)
-                           → navigate back to feed
+├── before_browse()     → 根据画像兴趣导航到 r/Python、r/Baking 等匹配子版
+├── find_content()      → 扫描 <shreddit-post> 元素，提取标题，与 profile.interests 打分
+├── should_engage()     → 相关性 ≥ 0.5 才考虑；实际概率 = like_probability + 相关性 × 0.4
+└── interact()          → 点击标题 → 加载帖子 → 滚动阅读（profile.reading_multiplier）
+                           → 随机点赞（profile.like_probability）
+                           → 随机评论（profile.comment_probability）
+                           → 返回信息流
 ```
 
-### Adding a new handler
+### 如何新增处理器
 
 ```python
 # platforms/amazon.py
@@ -153,69 +153,70 @@ class AmazonHandler(PlatformHandler):
                 "product_title": "h2 a span"}
 
     async def find_content(self, page, profile):
-        ...  # Scan product cards, match titles against profile.interests
+        ...  # 扫描商品卡片,匹配标题与 profile.interests
 
     async def interact(self, page, item, profile):
-        ...  # Click product → view details → optionally add to wishlist
+        ...  # 点击商品 → 查看详情 → 随机加入心愿单
 ```
 
-Then import in `platforms/__init__.py`: `from platforms import amazon`. The `@register_handler` decorator auto-registers it.
+然后在 `platforms/__init__.py` 中加一行 `from platforms import amazon`。`@register_handler` 装饰器会自动注册。
 
 ---
 
-## Abstract Handler Interface
+## 抽象处理器接口
 
 ```python
 class PlatformHandler(ABC):
-    # ── Must implement ──
+    # ── 子类必须实现 ──
     async def find_content(self, page, profile) -> list[ContentItem]: ...
     async def interact(self, page, item, profile) -> ActionResult: ...
     def _get_selectors(self) -> dict[str, str]: ...
 
-    # ── Optional hooks ──
-    async def before_browse(self, page, profile): ...
-    async def after_browse(self, page, profile, result): ...
-    def should_engage(self, item, profile) -> bool: ...
+    # ── 可选钩子 ──
+    async def before_browse(self, page, profile): ...       # 浏览前：导航、cookie 同意等
+    async def after_browse(self, page, profile, result): ... # 浏览后：清理、日志
+    def should_engage(self, item, profile) -> bool: ...      # 是否与匹配内容互动（骰子判定）
 
-    # ── Callbacks (set by caller) ──
-    on_content_found: ContentCallback | None
-    on_interact: ActionResultCallback | None
+    # ── 回调函数（调用方设置） ──
+    on_content_found: ContentCallback | None   # 发现匹配内容时触发
+    on_interact: ActionResultCallback | None   # 每次互动后触发
 
-    # ── Orchestrator ──
+    # ── 编排器 ──
     async def browse(self, page, profile, ctx, max_interactions=5) -> BrowseResult: ...
 
-    # ── Shared utilities ──
-    @staticmethod match_interests(text, interests) -> list[tuple[str, float]]
-    @staticmethod safe_click(page, selector) -> bool
-    @staticmethod safe_get_text(page, selector) -> str
+    # ── 共享工具方法 ──
+    @staticmethod match_interests(text, interests) -> list[tuple[str, float]]  # 文本与兴趣打分
+    @staticmethod safe_click(page, selector) -> bool                            # 安全点击
+    @staticmethod safe_get_text(page, selector) -> str                          # 安全提取文本
 ```
 
 ---
 
-## Core Modules
+## 核心模块
 
-### Stealth (`core/stealth.py`)
+### 反检测引擎 (`core/stealth.py`)
 
-Applied automatically before any navigation. Patches:
+每次导航前自动注入，修补以下检测点：
+
 - `navigator.webdriver` → `undefined`
-- `window.chrome` → present with native-looking runtime
-- `navigator.plugins` → 3 fake plugins (Chrome PDF, etc.)
-- `navigator.mimeTypes` → normal browser MIME types
-- iFrame contentWindow detection → blocked
-- CDP `Runtime.enable` traces → hidden
+- `window.chrome` → 存在且看起来是原生对象
+- `navigator.plugins` → 3 个伪插件（Chrome PDF 查看器等）
+- `navigator.mimeTypes` → 正常浏览器的 MIME 类型
+- iframe contentWindow 检测 → 拦截
+- CDP `Runtime.enable` 痕迹 → 隐藏
 
-### Human Behavior (`core/human_behavior.py`)
+### 拟人化操作 (`core/human_behavior.py`)
 
-| Function | Purpose |
-|----------|---------|
-| `human_delay(min, max)` | Gamma-distributed random pause |
-| `type_like_human(page, text)` | Natural typing with typos + correction |
-| `move_mouse_to(page, x, y)` | Bezier-curve mouse movement |
-| `click_like_human(page, selector)` | Move mouse → random position within element → click |
-| `scroll_like_human(page, px, style)` | Style-based scrolling with pauses and re-reads |
-| `random_scroll_behavior(page, style)` | Multi-viewport casual browsing session |
+| 函数 | 作用 |
+|------|------|
+| `human_delay(min, max)` | Gamma 分布随机等待 |
+| `type_like_human(page, text)` | 模拟真人打字（含打错+纠正） |
+| `move_mouse_to(page, x, y)` | 贝塞尔曲线鼠标移动 |
+| `click_like_human(page, selector)` | 移动到元素内随机位置 → 点击 |
+| `scroll_like_human(page, px, style)` | 按阅读风格滚动（含停顿+回看） |
+| `random_scroll_behavior(page, style)` | 模拟一次完整的信息流浏览 |
 
-### Session Isolation (`core/context_manager.py`)
+### 会话隔离 (`core/context_manager.py`)
 
 ```python
 async with ContextManager() as manager:
@@ -225,56 +226,57 @@ async with ContextManager() as manager:
         profile=TECH_ENTHUSIAST,
     )
     page = await ctx.new_page()
-    # ... browse, interact ...
-    await ctx.close()  # auto-saves cookies to profiles/
+    # ... 浏览、互动 ...
+    await ctx.close()  # 自动保存 cookie 到 profiles/
 ```
 
-Each `AccountContext` tracks: action counters, rate limits, session duration.
+每个 `AccountContext` 自动跟踪：操作计数、频控状态、会话时长。
 
 ---
 
-## Configuration
+## 配置说明
 
-### Rate limits (`config/settings.py`)
+### 频控参数 (`config/settings.py`)
 
 ```python
-GLOBAL_DAILY_ACTION_CAP = 500   # across all accounts
-ACTIVE_HOURS_START = 8          # 8 AM
-ACTIVE_HOURS_END = 23           # 11 PM
+GLOBAL_DAILY_ACTION_CAP = 500   # 所有账号合计每天最多 500 次操作
+ACTIVE_HOURS_START = 8          # 早上 8 点开始
+ACTIVE_HOURS_END = 23           # 晚上 11 点结束
 
-# Per-platform (example):
+# 每个平台可独立设置（示例）：
 PlatformConfig(daily_like_limit=30, daily_comment_limit=8, ...)
 ```
 
-### Proxy
+### 代理设置
 
 ```python
 PROXY_SERVER = "http://user:pass@proxy.example.com:8080"
 ```
 
-### Adding a platform
+### 新增平台
 
-1. Add to `PlatformName` Literal in `config/settings.py`
-2. Add `PlatformConfig` entry in `PLATFORMS` dict
-3. Add to `platform_category()` map
-4. (Optional) Create `platforms/{key}.py` handler
-
----
-
-## Evidence
-
-Each run generates:
-- `evidence/screenshots/{profile}/{platform}/` — before/after PNGs per session
-- `evidence/summary.json` — per-combo results with status, duration, search terms
+1. 在 `config/settings.py` 的 `PlatformName` 类型中添加
+2. 在 `PLATFORMS` 字典中添加 `PlatformConfig` 条目
+3. 在 `platform_category()` 映射中添加
+4. （可选）创建 `platforms/{key}.py` 处理器
 
 ---
 
-## FAQ
+## 运行证据
 
-**How does it prove browsing was recorded?** Even without login, platforms track page views, search queries, scroll depth, and dwell time via cookies. The framework saves these cookies in `profiles/`, so repeated sessions create persistent anonymous profiles.
+每次运行自动生成：
 
-**Does headless mode work?** It works but reduces stealth efficacy. Default is `headless=False` (visible browser window).
+- `evidence/screenshots/{画像}/{平台}/` — 每次会话的前/后截图
+- `evidence/summary.json` — 每个组合的状态、耗时、搜索词等完整记录
 
-**How do I log in?** Run the framework once with `headless=False`, manually log in, then close. The framework auto-saves the session. Next run restores it.
+---
 
-**Will my accounts get banned?** Risk exists. Mitigations: use headful mode, respect daily limits, spread actions across hours, use different fingerprints per account, and don't run 24/7. This project is for educational purposes only.
+## 常见问题
+
+**如何证明浏览行为被平台记录了？**  即使未登录，平台也会通过 cookie 追踪你的页面浏览、搜索关键词、滚动深度和停留时间。框架将这些 cookie 保存在 `profiles/` 目录，多次重复会话会建立持久的匿名用户画像。
+
+**无头模式能用吗？** 能用但反检测效果减弱。默认 `headless=False`（可见浏览器窗口），以保证最佳的隐身效果。
+
+**如何登录？** 首次运行时框架会打开可见浏览器窗口，手动扫码或输入密码登录；关闭时框架自动保存登录态。下次运行自动恢复。
+
+**会被封号吗？** 存在风险。降低风险的策略：使用有头模式、遵守每日上限、操作分散在不同时段、不同账号使用不同指纹、不要 24 小时不间断运行。本项目仅用于课程实验和学习目的。
