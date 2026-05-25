@@ -23,6 +23,24 @@ uv run python daily_farming.py --quick
 uv run python daily_farming.py
 ```
 
+**或使用 Makefile（推荐）**：
+
+```bash
+# 一键：类型检查 → 运行养号 → 自动提交推送
+make
+
+# 分步操作
+make install     # 安装依赖 + Chromium
+make check       # 类型检查（0 error 才继续）
+make run         # 快速模式（17 组合）
+make run-full    # 全量模式（102 组合）
+make push        # 自动 git add -A && commit && push
+make clean       # 清理临时文件
+
+# Windows 上没有 make？
+# winget install GnuWin32.Make    或在 Git Bash 中使用
+```
+
 ---
 
 ## 核心概念
