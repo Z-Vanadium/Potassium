@@ -8,3 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Runtime data (session state, screenshots, logs)
+profiles/*.json
+evidence/
+data/
+
+# OpenMode internals
+.omo/

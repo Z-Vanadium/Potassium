@@ -36,13 +36,13 @@ class DemoAccount(TypedDict):
 # In production, this would come from accounts/*.json config files
 DEMO_ACCOUNTS: list[DemoAccount] = [
     {
-        "account_id": "tech_zhihu_01",
-        "platform": "zhihu",
+        "account_id": "tech_reddit_01",
+        "platform": "reddit",
         "profile": TECH_ENTHUSIAST,
     },
     {
-        "account_id": "student_bilibili_01",
-        "platform": "bilibili",
+        "account_id": "student_spotify_01",
+        "platform": "spotify",
         "profile": COLLEGE_STUDENT,
     },
 ]
