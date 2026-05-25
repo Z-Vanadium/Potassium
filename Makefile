@@ -41,5 +41,6 @@ push:
 # ── Clean runtime artifacts ─────────────────────────────────────────────────
 
 clean:
-	rm -rf evidence/ profiles/*.json
-	find . -type d -name "__pycache__" -exec rm -rf {} +
+	-rm -rf evidence/
+	-rm -f profiles/*.json
+	-find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null
