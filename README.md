@@ -271,7 +271,7 @@ FORCE_LOGIN = False            # 仅检测到登录墙的平台才等待
 handler.before_browse()
     └── wait_for_login()
             │
-            ├── 1. 特定选择器检测（9 个平台有专用检测器）
+            ├── 1. 特定选择器检测（17 个平台有专用检测器）
             │      logged_in 选择器可见 → 已登录，继续
             │      login_wall 选择器可见 → 需要登录
             │
