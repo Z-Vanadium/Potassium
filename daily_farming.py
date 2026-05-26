@@ -298,7 +298,29 @@ async def farm_one(
                 logger.info(f"  [{profile.display_name} → {platform.display_name}] Using {handler.__class__.__name__}")
                 await page.screenshot(path=str(ss_before), full_page=False)
 
-                browse_result = await handler.browse(page, profile, ctx, max_interactions=3)
+                # Per-action screenshot counter (mutable for closure)
+                _action_seq = [0]
+
+                async def on_action(item, action):
+                    _action_seq[0] += 1
+                    status_parts: list[str] = []
+                    if action.clicked:
+                        status_parts.append("viewed")
+                    if action.liked:
+                        status_parts.append("liked")
+                    if action.commented:
+                        status_parts.append("commented")
+                    status = "_".join(status_parts) if status_parts else "interacted"
+                    ss_path = ss_dir / f"{ts}_action{_action_seq[0]}_{status}.png"
+                    try:
+                        await page.screenshot(path=str(ss_path), full_page=False)
+                        logger.debug(f"    Screenshot: {ss_path.name}")
+                    except Exception:
+                        pass
+
+                handler.on_interact = on_action  # type: ignore[assignment]
+
+                browse_result = await handler.browse(page, profile, ctx, max_interactions=5)
                 result["status"] = "ok"
                 result["search_terms"] = [f"handler: {browse_result.items_found} found, "
                                           f"{browse_result.items_viewed} viewed, "
