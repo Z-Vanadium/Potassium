@@ -23,10 +23,11 @@ Callbacks:
 
 from __future__ import annotations
 
+import inspect
 import random
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Awaitable, Callable
 
 from loguru import logger
 
@@ -80,7 +81,7 @@ class BrowseResult:
 # ── Callback type aliases ──────────────────────────────────────────────────
 
 ContentCallback = Callable[["ContentItem"], None]
-ActionResultCallback = Callable[["ContentItem", "ActionResult"], None]
+ActionResultCallback = Callable[["ContentItem", "ActionResult"], None] | Callable[["ContentItem", "ActionResult"], Awaitable[None]]
 
 
 # ── Abstract base handler ──────────────────────────────────────────────────
@@ -266,12 +267,39 @@ class PlatformHandler(ABC):
                 except Exception:
                     pass
 
-            # Strategy 2: login wall disappeared
+            # Strategy 2: login wall disappeared — wait for logged-in confirmation
             if login_wall:
                 try:
                     loc = page.locator(login_wall).first
                     if await loc.count() == 0:
-                        logger.success(f"[{self.__class__.__name__}] Login wall disappeared! Continuing...")
+                        logger.info(f"[{self.__class__.__name__}] Login wall disappeared — "
+                                    f"waiting for login confirmation (max 60s)...")
+                        # Secondary wait: poll for logged-in indicator, max 60s
+                        post_wait = 0
+                        post_max = 60
+                        post_interval = 3
+                        confirmed = False
+                        while post_wait < post_max:
+                            await asyncio.sleep(post_interval)
+                            post_wait += post_interval
+                            if logged_in_sel:
+                                try:
+                                    loc2 = page.locator(logged_in_sel).first
+                                    if await loc2.count() > 0 and await loc2.is_visible(timeout=1000):
+                                        confirmed = True
+                                        break
+                                except Exception:
+                                    pass
+                            if post_wait % 15 == 0:
+                                logger.info(f"[{self.__class__.__name__}] "
+                                            f"Still waiting for login confirmation... ({post_wait}s)")
+                        if confirmed:
+                            logger.success(f"[{self.__class__.__name__}] Login confirmed! Continuing...")
+                            print("  ✓ Login confirmed! Resuming...\n", flush=True)
+                        else:
+                            logger.success(f"[{self.__class__.__name__}] "
+                                           f"Login wall gone + 60s expired — continuing...")
+                            print("  ✓ Login detected! Resuming...\n", flush=True)
                         await asyncio.sleep(2.0)
                         return True
                 except Exception:
@@ -393,9 +421,11 @@ class PlatformHandler(ABC):
             if action.commented:
                 result.items_commented += 1
 
-            # Fire callback
+            # Fire callback (supports both sync and async)
             if self.on_interact:
-                self.on_interact(item, action)
+                cb_result = self.on_interact(item, action)
+                if inspect.isawaitable(cb_result):
+                    await cb_result
 
             if account_ctx.can_perform("likes") and action.liked:
                 account_ctx.record_action("likes")
